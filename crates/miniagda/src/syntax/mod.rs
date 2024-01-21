@@ -171,7 +171,10 @@ fn surface_to_core_cls(ident: &Ident, cls: surface::Cls, env: &mut Env) -> Resul
   };
 
   if ident != &func {
-    return Err(Error::from(SurfaceToCoreErr::MisnamedCls { name: ident.clone(), cls: func }));
+    return Err(Error::from(SurfaceToCoreErr::MisnamedCls {
+      name: ident.name.clone(),
+      cls: func,
+    }));
   }
 
   let pats = surf_to_core_pats(pats, env)?;
@@ -193,7 +196,7 @@ fn surf_to_core_pats(pats: Vec<surface::Pat>, env: &mut Env) -> Result<Vec<core:
       .map(move |pat| {
         if let surface::Pat::Id(PatId { ident, pats, .. }) = pat {
           if env.has_cstr(ident) {
-            bring_variables_into_scope(pats, env, in_scope)?
+            bring_variables_into_scope(pats, env, in_scope)?;
           } else {
             if !pats.is_empty() {
               return Err(Error::from(SurfaceToCoreErr::UnresolvedCstr { name: ident.clone() }));
@@ -282,6 +285,16 @@ fn surf_to_core_cstr(cstr: surface::Cstr, env: &mut Env) -> Result<core::Cstr> {
 // -----------------------------------------------------------------------------------------------------------------------------------
 // Programs
 
+pub fn surface_to_core(prog: surface::Prog) -> Result<core::Prog> {
+  let mut env = Env::default();
+  let prog = core::Prog {
+    decls: prog.decls.into_iter().map(|decl| surf_to_core_decl(decl, &mut env)).collect::<Result<Vec<_>>>()?,
+    span: prog.span,
+  };
+  assert!(env.var.is_empty());
+  Ok(prog)
+}
+
 fn surf_to_core_decl(decl: surface::Decl, env: &mut Env) -> Result<core::Decl> {
   env.forget::<Result<_>>(|env| {
     Ok(match decl {
@@ -289,16 +302,6 @@ fn surf_to_core_decl(decl: surface::Decl, env: &mut Env) -> Result<core::Decl> {
       surface::Decl::Func(func) => core::Decl::Func(surf_to_core_func(func, env)?),
     })
   })
-}
-
-pub fn surface_to_core(prog: surface::Prog) -> Result<core::Prog> {
-  let mut env = Env::default();
-  let prog = core::Prog {
-    decls: prog.decls.into_iter().map(|decl| surf_to_core_decl(decl, &mut env)).collect::<Result<Vec<_>>>()?,
-    span: prog.span,
-  };
-  debug_assert!(env.var.is_empty());
-  Ok(prog)
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

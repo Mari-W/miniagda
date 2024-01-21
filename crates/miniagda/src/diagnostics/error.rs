@@ -18,10 +18,10 @@ pub enum Error {
 impl Display for Error {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Error::SurfaceToCore(e) => write!(f, "[SurfaceToCore] {}", e),
-      Error::Parse(e) => write!(f, "[Parse] {}", e),
-      Error::Lex(e) => write!(f, "[Lex] {}", e),
-      Error::Elab(e) => write!(f, "[Elaboration] {}", e),
+      Error::SurfaceToCore(e) => write!(f, "[SurfaceToCore] {e}"),
+      Error::Parse(e) => write!(f, "[Parse] {e}"),
+      Error::Lex(e) => write!(f, "[Lex] {e}"),
+      Error::Elab(e) => write!(f, "[Elaboration] {e}"),
     }
   }
 }
@@ -30,7 +30,7 @@ impl Display for Error {
 pub enum SurfaceToCoreErr {
   UnboundName { name: String, span: Span },
   GlobalExists { name: String, span: Span },
-  MisnamedCls { name: Ident, cls: Ident },
+  MisnamedCls { name: String, cls: Ident },
   UnresolvedCstr { name: Ident },
   DuplicatedPatternVariable { name: Ident },
 }
@@ -38,11 +38,11 @@ pub enum SurfaceToCoreErr {
 impl Display for SurfaceToCoreErr {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      SurfaceToCoreErr::UnboundName { name, .. } => write!(f, "could not resolve variable {}", name),
-      SurfaceToCoreErr::GlobalExists { name, .. } => write!(f, "constructor or data type with name {} already exists", name),
-      SurfaceToCoreErr::MisnamedCls { name, cls } => write!(f, "clause with name {} does not begin with function name {} where it is defined on", cls, name),
-      SurfaceToCoreErr::UnresolvedCstr { name } => write!(f, "constructor {} was never defined and cannot be matched on", name),
-      SurfaceToCoreErr::DuplicatedPatternVariable { name } => write!(f, "found duplicated pattern variable {} in clause", name),
+      SurfaceToCoreErr::UnboundName { name, .. } => write!(f, "could not resolve variable {name}"),
+      SurfaceToCoreErr::GlobalExists { name, .. } => write!(f, "constructor or data type with name {name} already exists"),
+      SurfaceToCoreErr::MisnamedCls { name, cls } => write!(f, "clause with name {cls} does not begin with function name {name} where it is defined on"),
+      SurfaceToCoreErr::UnresolvedCstr { name } => write!(f, "constructor {name} was never defined and cannot be matched on"),
+      SurfaceToCoreErr::DuplicatedPatternVariable { name } => write!(f, "found duplicated pattern variable {name} in clause"),
     }
   }
 }
@@ -56,8 +56,8 @@ pub enum ParseErr {
 impl Display for ParseErr {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      ParseErr::FileNotFound { path } => write!(f, "file {} does not exist", path),
-      ParseErr::UnexpectedToken { pos: span, expected } => write!(f, "expected one of {} at position {}", expected, span),
+      ParseErr::FileNotFound { path } => write!(f, "file {path} does not exist"),
+      ParseErr::UnexpectedToken { pos: span, expected } => write!(f, "expected one of {expected} at position {span}"),
     }
   }
 }
@@ -94,19 +94,19 @@ pub enum ElabErr {
 impl Display for ElabErr {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      ElabErr::ExpectedSetCtx { got } => write!(f, "expected type of kind Setℓ in context binding, but got `{}`", got),
-      ElabErr::ExpectedSetAll { got } => write!(f, "expected type of kind Setℓ in a ∀-binding, but got `{}`", got),
-      ElabErr::LevelTooHigh { tm, max } => write!(f, "term `{}` exceeds maximum set level `{}` data type", tm, max),
-      ElabErr::ExpectedParam { expected, got: Some(got) } => write!(f, "expected data type parameter `{}`, but got `{}`", expected, got),
-      ElabErr::ExpectedParam { expected, got: None } => write!(f, "expected data type parameter `{}`, but got found nothing", expected),
-      ElabErr::ExpectedIndex { expected, got: Some(got) } => write!(f, "expected data type index `{}`, but got `{}`", expected, got),
-      ElabErr::ExpectedIndex { expected, got: None } => write!(f, "expected data type index `{}`, but got found nothing", expected),
-      ElabErr::UnexpectedArg { got } => write!(f, "unexpected data type argument `{}`", got),
-      ElabErr::TypeMismatch { ty1, ty2, v1, v2 } => write!(f, "type mismatch between `{}` and `{}`, more specifically `{}` is not `{}`", ty1, ty2, v1, v2),
-      ElabErr::FunctionTypeExpected { tm, got } => write!(f, "expected `{}` to be a function type, but got `{}`", tm, got),
-      ElabErr::ExpectedData { expected, got } => write!(f, "expected constructor to end in data type  `{}`, but got `{}`", expected, got),
-      ElabErr::AttemptAbsInfer { tm } => write!(f, "cannot infer type for abstraction `{}`", tm),
-      ElabErr::ExpectedSetData { got } => write!(f, "expected data type definition to end in Setℓ, but got `{}`", got),
+      ElabErr::ExpectedSetCtx { got } => write!(f, "expected type of kind Setℓ in context binding, but got `{got}`"),
+      ElabErr::ExpectedSetAll { got } => write!(f, "expected type of kind Setℓ in a ∀-binding, but got `{got}`"),
+      ElabErr::LevelTooHigh { tm, max } => write!(f, "term `{tm}` exceeds maximum set level `{max}` data type"),
+      ElabErr::ExpectedParam { expected, got: Some(got) } => write!(f, "expected data type parameter `{expected}`, but got `{got}`"),
+      ElabErr::ExpectedParam { expected, got: None } => write!(f, "expected data type parameter `{expected}`, but got found nothing"),
+      ElabErr::ExpectedIndex { expected, got: Some(got) } => write!(f, "expected data type index `{expected}`, but got `{got}`"),
+      ElabErr::ExpectedIndex { expected, got: None } => write!(f, "expected data type index `{expected}`, but got found nothing"),
+      ElabErr::UnexpectedArg { got } => write!(f, "unexpected data type argument `{got}`"),
+      ElabErr::TypeMismatch { ty1, ty2, v1, v2 } => write!(f, "type mismatch between `{ty1}` and `{ty2}`, more specifically `{v1}` is not `{v2}`"),
+      ElabErr::FunctionTypeExpected { tm, got } => write!(f, "expected `{tm}` to be a function type, but got `{got}`"),
+      ElabErr::ExpectedData { expected, got } => write!(f, "expected constructor to end in data type  `{expected}`, but got `{got}`"),
+      ElabErr::AttemptAbsInfer { tm } => write!(f, "cannot infer type for abstraction `{tm}`"),
+      ElabErr::ExpectedSetData { got } => write!(f, "expected data type definition to end in Setℓ, but got `{got}`"),
     }
   }
 }

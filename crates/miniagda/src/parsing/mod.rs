@@ -19,6 +19,6 @@ pub fn parse<P: AsRef<Path>>(path: P) -> Result<Prog> {
     pos: e.location,
     expected: e.expected.to_string(),
   })?;
-  println!("{}", parsed);
+  // println!("{parsed}");
   Ok(parsed)
 }

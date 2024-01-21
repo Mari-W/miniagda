@@ -173,7 +173,13 @@ impl Display for Ctx {
 impl Display for Pat {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Pat::Id(PatId { ident: cstr, pats, .. }) => if !pats.is_empty() {write!(f, "({} {})", cstr, pats.iter().map(|pat| format!("{pat}")).collect::<Vec<String>>().join(" ")) } else { write!(f, "{}", cstr) } ,
+      Pat::Id(PatId { ident: cstr, pats, .. }) => {
+        if pats.is_empty() {
+          write!(f, "{cstr}")
+        } else {
+          write!(f, "({} {})", cstr, pats.iter().map(|pat| format!("{pat}")).collect::<Vec<String>>().join(" "))
+        }
+      }
       Pat::Dot(PatDot { tm, .. }) => write!(f, ".({tm})"),
     }
   }
@@ -181,7 +187,12 @@ impl Display for Pat {
 
 impl Display for ClsAbsurd {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{} {} ()", self.func, self.pats.iter().map(|pat| format!("{pat}")).collect::<Vec<String>>().join(" "),)
+    write!(
+      f,
+      "{} {} ()",
+      self.func,
+      self.pats.iter().map(|pat| format!("{pat}")).collect::<Vec<String>>().join(" "),
+    )
   }
 }
 

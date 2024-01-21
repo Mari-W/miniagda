@@ -168,7 +168,7 @@ pub fn process_indent<T>(spanned: SpannedToks<T>, mut is_block_start: impl FnMut
       toks.push(Spanned::new(Braced::End, span_end.clone()));
     }
 
-    let started_new_item = span_col == *indent_stack.last().unwrap();
+    let started_new_item = span_col == *indent_stack.last().expect("unexpected empty ident stack");
     if started_new_item {
       toks.push(Spanned::new(Braced::Item, span_end.clone()));
     }
