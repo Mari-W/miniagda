@@ -1,6 +1,6 @@
 use super::lex::{Braced, SpannedToks, Token};
 use crate::diagnostics::span::{Span, Spanned};
-use crate::syntax::surface::{self, Cls, ClsAbsurd, ClsClause, Cstr, Ctx, Decl, Func, Pat, PatId, PatDot, Prog, Tm, TmAbs, TmAll, TmApp, TmSet};
+use crate::syntax::surface::{self, Cls, ClsAbsurd, ClsClause, Cstr, Ctx, Decl, Func, Pat, PatDot, PatId, Prog, Tm, TmAbs, TmAll, TmApp, TmSet};
 use crate::syntax::Ident;
 
 peg::parser! {
@@ -18,7 +18,7 @@ peg::parser! {
     // -----------------------------------------------------------------------------------------------------------------------------------
     // Terms
 
-    rule tm() -> Tm 
+    rule tm() -> Tm
       = start:position!() ctx:ctx1() [Tok(Arrow)] codom:tm() end:position!() {
         ctx_to_all(&ctx.binds, codom, (file, (start, end)))
       }
@@ -74,7 +74,7 @@ peg::parser! {
     // Functions
 
 
-    rule pat() -> Pat 
+    rule pat() -> Pat
       = start:position!() ident:id() end:position!() {
           Pat::Id(PatId { ident, pats: vec![], span: Span { file: file.to_string(), start, end } })
       }
@@ -83,7 +83,7 @@ peg::parser! {
         Pat::Dot(PatDot { tm, span: Span { file: file.to_string(), start, end } })
       }
       // ident:id() { Pat::Var(ident) } // might be Pat::Cst -- check in surface_to_core
-      
+
     rule cls() -> Cls
       = [Item] start:position!() ident:id() pats:pat()* [Tok(Equals)] [Begin] [Item] tm:tm() [End] end:position!() {
         Cls::Cls(ClsClause { func: ident, pats, rhs: tm, span: Span { file: file.to_string(), start, end } })
@@ -91,7 +91,7 @@ peg::parser! {
       / [Item] start:position!() ident:id() pats:pat()* [Tok(BraceL)] [Tok(BraceR)] end:position!() {
         Cls::Abs(ClsAbsurd { func: ident, pats, span: Span { file: file.to_string(), start, end } })
       }
-        
+
     rule func() -> Func
         = [Item] start:position!() ident:id() [Tok(Colon)] ty:tm() cls:cls()+ end:position!() {
            Func { ident, ty, cls, span: Span { file: file.to_string(), start, end } }
@@ -110,10 +110,10 @@ peg::parser! {
       }
 
     rule cstr(data : &Ident) -> Cstr
-      = start:position!() [Item] ident:id() [Tok(Colon)] rhs:cstr_rhs() end:position!() {
-        Cstr { ident, args: rhs.0, params: rhs.1, span: Span { file: file.to_string(), start, end } }
+      = start:position!() [Item] ident:id() [Tok(Colon)] ty:tm() end:position!() {
+        Cstr { ident, ty, span: Span { file: file.to_string(), start, end } }
       }
-        
+
     rule indices_and_level() -> (Ctx, Tm)
       = ctx:ctx1() [Tok(Arrow)] tm:tm_no_fn() {
         (ctx, tm)
@@ -121,21 +121,21 @@ peg::parser! {
       / pos:position!() tm:tm_no_fn() {
         (Ctx { binds: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, tm)
       }
-        
+
     rule data() -> surface::Data
       = [Item]  start:position!() [Tok(Data)] ident:id() params:ctx() [Tok(Colon)] ial:indices_and_level() [Tok(Where)]
         [Begin] cstrs:cstr(&ident)* [Item]? [End] end:position!() {
           surface::Data { ident, params, indices: ial.0, set: ial.1, cstrs, span: Span { file: file.to_string(), start, end } }
       }
 
-    
+
     // -----------------------------------------------------------------------------------------------------------------------------------
     // Programs
-        
+
     rule decl() -> Decl
       = data:data() { Decl::Data(data) }
       / func:func() { Decl::Func(func) }
-        
+
     pub rule prog() -> Prog
      = start:position!() [Begin] decls:decl()* [End] end:position!() {
       Prog { decls, span: Span { file: file.to_string(), start, end } }
@@ -144,14 +144,11 @@ peg::parser! {
 }
 
 fn ctx_to_all(binds: &[(Ident, Tm)], codom: Tm, (file, (start, end)): (&str, (usize, usize))) -> Tm {
-  // TODO: unified parsing for ctx and all types (as they are the same)
-
-  assert!(!binds.is_empty());
+  assert!(!binds.is_empty(), "ice: expected non empty context to perform a translation to type");
 
   let codom = if binds.len() == 1 {
     codom
   } else {
-    //TODO: ?
     ctx_to_all(&binds[1..], codom, (file, (binds[1..][0].0.span().start, end)))
   };
 

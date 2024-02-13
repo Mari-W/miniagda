@@ -32,6 +32,17 @@ struct Env {
 }
 
 impl Env {
+  fn resolve_pat(&self, var: &Ident) -> core::Idx {
+    // this is safe, since we definitely added them before
+    core::Idx(
+      self
+        .var
+        .iter()
+        .position(|n| n.name == var.name)
+        .expect("ice: did not correctly added all pattern variables to scope"),
+    )
+  }
+
   fn resolve(&self, var: Ident) -> Result<core::Tm> {
     assert!(var.name != "_", "term inference not yet implemented");
     match self.var.iter().position(|n| n.name == var.name) {
@@ -229,8 +240,9 @@ fn surf_to_core_pats(pats: Vec<surface::Pat>, env: &mut Env) -> Result<Vec<core:
           span,
         })
       } else {
-        assert!(pats.is_empty());
-        core::Pat::Var(ident)
+        assert!(pats.is_empty(), "ice: did not correctly check that only constructors have sub patterns");
+        let idx = env.resolve_pat(&ident);
+        core::Pat::Var(core::PatVar { name: ident.name, idx, span })
       }),
       surface::Pat::Dot(surface::PatDot { tm, span }) => Ok(core::Pat::Dot(core::PatDot {
         tm: surf_to_core_tm(tm, env)?,
@@ -265,19 +277,11 @@ fn surf_to_core_data(data: surface::Data, env: &mut Env) -> Result<core::Data> {
 }
 
 fn surf_to_core_cstr(cstr: surface::Cstr, env: &mut Env) -> Result<core::Cstr> {
-  let (args, params) = env.forget(|env| {
-    (
-      surf_to_core_tel(cstr.args, env),
-      cstr.params.into_iter().map(|tm| surf_to_core_tm(tm, env)).collect::<Result<Vec<_>>>(),
-    )
-  });
-
   env.add_glo(cstr.ident.clone(), Glo::Cstr)?;
 
   Ok(core::Cstr {
     ident: cstr.ident,
-    args: args?,
-    params: params?,
+    ty: surf_to_core_tm(cstr.ty, env)?,
     span: cstr.span,
   })
 }
@@ -287,12 +291,10 @@ fn surf_to_core_cstr(cstr: surface::Cstr, env: &mut Env) -> Result<core::Cstr> {
 
 pub fn surface_to_core(prog: surface::Prog) -> Result<core::Prog> {
   let mut env = Env::default();
-  let prog = core::Prog {
+  Ok(core::Prog {
     decls: prog.decls.into_iter().map(|decl| surf_to_core_decl(decl, &mut env)).collect::<Result<Vec<_>>>()?,
     span: prog.span,
-  };
-  assert!(env.var.is_empty());
-  Ok(prog)
+  })
 }
 
 fn surf_to_core_decl(decl: surface::Decl, env: &mut Env) -> Result<core::Decl> {

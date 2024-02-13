@@ -45,7 +45,12 @@ fn check<P: AsRef<Path> + panic::UnwindSafe>(path: P) {
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
   panic::set_hook(Box::new(|info| {
-    print!("{}⨯{} {}", color::Fg(color::Red), color::Fg(color::Reset), info);
+    print!(
+      "{}⨯{} miniagda crashed: {}",
+      color::Fg(color::Red),
+      color::Fg(color::Reset),
+      info.message().map(|a| a.as_str().unwrap_or("no reason")).unwrap_or("unexpected panic")
+    );
   }));
   let args = Args::parse();
   let inotify = Inotify::init().expect("error initializing inotify");

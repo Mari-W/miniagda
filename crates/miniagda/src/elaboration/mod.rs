@@ -1,16 +1,19 @@
 use crate::{
   diagnostics::{
     error::{ElabErr, Error},
-    span::Spanned,
+    span::{Span, Spanned},
   },
-  elaboration::eval::eval,
-  syntax::core::{Prog, Decl},
+  elaboration::eval::{eq, eval},
+  syntax::{
+    core::{Ctx, Decl, Prog, Tel},
+    Ident,
+  },
   trace,
 };
 
-use crate::syntax::core::{Lvl, Set, Tm, TmAbs, TmAll, TmApp, Val, ValAbs, ValAll, ValApp, ValVar};
+use crate::syntax::core::{Set, Tm, TmAbs, TmAll, TmApp, Val, ValAll};
 
-use self::{state::State, data::elab_data};
+use self::{data::elab_data, func::elab_func, state::State};
 use crate::diagnostics::Result;
 
 mod data;
@@ -21,9 +24,8 @@ mod state;
 // -----------------------------------------------------------------------------------------------------------------------------------
 // Terms
 
-
 pub fn elab_tm_chk(tm: Tm, ty: Val, state: &State) -> Result<()> {
-  trace!("elab_tm_chk", "check that term `{}` has type `{}` (up to β-η reduction)", tm, ty);
+  trace!("check that term `{}` has type `{}` (up to β-η reduction)", tm, ty);
   let tm_fmt = format!("{tm}");
   let ty_fmt = format!("{ty}");
 
@@ -41,7 +43,7 @@ pub fn elab_tm_chk(tm: Tm, ty: Val, state: &State) -> Result<()> {
       }
     }
   };
-  trace!("elab_tm_chk", "checked that term `{}` has type `{}` (up to β-η reduction)", tm_fmt, ty_fmt);
+  trace!("checked that term `{}` has type `{}` (up to β-η reduction)", tm_fmt, ty_fmt);
   Ok(())
 }
 
@@ -63,14 +65,109 @@ pub fn elab_tm_inf(tm: Tm, state: &State) -> Result<Val> {
       }
     }
     tm @ Tm::Abs(_) => return Err(Error::from(ElabErr::AttemptAbsInfer { tm })),
-    Tm::All(TmAll { dom, codom, span, .. }) => match (elab_tm_inf(*dom, state)?, elab_tm_inf(*codom, state)?) {
-      (Val::Set(Set { level: level1, .. }), Val::Set(Set { level: level2, .. })) => Val::Set(Set { level: level1.max(level2), span }),
-      (Val::Set(_), s) | (s, Val::Set(_) | _) => return Err(Error::from(ElabErr::ExpectedSetAll { got: s })),
+    Tm::All(TmAll { ident, box dom, box codom, span }) => match elab_tm_inf(dom.clone(), state)? {
+      Val::Set(Set { level: level1, .. }) => {
+        let mut n_state = state.clone();
+        n_state.bind(ident.name, eval(dom, &state.env));
+        match elab_tm_inf(codom, &n_state)? {
+          Val::Set(Set { level: level2, .. }) => Val::Set(Set { level: level1.max(level2), span }),
+          tm => return Err(Error::from(ElabErr::ExpectedSetAll { got: tm })),
+        }
+      }
+      tm => return Err(Error::from(ElabErr::ExpectedSetAll { got: tm })),
     },
     Tm::Set(Set { level, span }) => Val::Set(Set { level: level + 1, span }),
   };
-  trace!("elab_tm_inf", "inferred type of `{}` to be `{}`", tm_fmt, ty);
+  trace!("inferred type of `{}` to be `{}`", tm_fmt, ty);
   Ok(ty)
+}
+
+fn unroll_app(tm: Tm) -> Vec<Tm> {
+  match tm {
+    Tm::App(TmApp { box left, box right, .. }) => {
+      let mut tms = unroll_app(left);
+      tms.push(right);
+      tms
+    }
+    tm => vec![tm],
+  }
+}
+
+fn roll_app(left: Tm, tms: &[Tm]) -> Tm {
+  if tms.is_empty() {
+    return left;
+  }
+  let left_span = left.span();
+  roll_app(
+    Tm::App(TmApp {
+      left: Box::new(left),
+      right: Box::new(tms[0].clone()),
+      span: Span {
+        file: left_span.file,
+        start: left_span.start,
+        end: tms[0].span().end,
+      },
+    }),
+    &tms[1..],
+  )
+}
+
+// ------------------------------------------------------------------------------------------------------------------------------------
+// Contexts
+
+pub fn ctx_to_fn(ctx: &Ctx, end: Tm) -> Tm {
+  tms_to_fn(&ctx.tms, &ctx.binds, end)
+}
+
+pub fn tel_to_fn(tel: &Tel, end: Tm) -> Tm {
+  tms_to_fn(&tel.tms, &tel.binds, end)
+}
+
+fn tms_to_fn(tms: &[Tm], binds: &[Ident], end: Tm) -> Tm {
+  if tms.is_empty() {
+    assert!(binds.is_empty(), "ice: invariant that there are as many tms and tys are present was not met");
+    return end;
+  }
+  let dom = tms[0].clone();
+  let ident = binds[0].clone();
+  let codom = tms_to_fn(&tms[1..], &binds[1..], end);
+  let dom_span = dom.span();
+  let codom_span = codom.span();
+  Tm::All(TmAll {
+    ident,
+    dom: Box::new(dom),
+    codom: Box::new(codom),
+    span: Span {
+      file: dom_span.file,
+      start: dom_span.start,
+      end: codom_span.end,
+    },
+  })
+}
+
+pub fn fn_to_ctx(ty: Tm) -> (Ctx, Tm) {
+  let span = ty.span();
+  let (binds, tms, r_ty) = fn_to_tms(ty);
+  (Ctx { binds, tms, span }, r_ty)
+}
+
+pub fn fn_to_tel(ty: Tm) -> (Tel, Tm) {
+  let span = ty.span();
+  let (binds, tms, r_ty) = fn_to_tms(ty);
+  (Tel { binds, tms, span }, r_ty)
+}
+
+fn fn_to_tms(ty: Tm) -> (Vec<Ident>, Vec<Tm>, Tm) {
+  match ty {
+    Tm::Abs(_) => unreachable!("ice: cannot have a abstraction in function type at this point"),
+    Tm::All(TmAll { ident, box dom, box codom, .. }) => {
+      let (mut binds, mut tms, rty) = fn_to_tms(codom);
+      binds.insert(0, ident);
+      tms.insert(0, dom);
+      (binds, tms, rty)
+    }
+    tm => (vec![], vec![], tm),
+  }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -83,103 +180,12 @@ pub fn elab(prog: Prog) -> Result<()> {
 
 pub fn elab_prog(prog: Prog, state: &mut State) -> Result<()> {
   prog.decls.into_iter().map(|decl| elab_decl(decl, state)).collect::<Result<Vec<_>>>()?;
-  assert!(state.no_locals());
   Ok(())
 }
 
 pub fn elab_decl(decl: Decl, state: &mut State) -> Result<()> {
   state.forget(|state| match decl {
     Decl::Data(data) => elab_data(data, state),
-    Decl::Func(_) => unimplemented!(),
+    Decl::Func(func) => elab_func(func, state),
   })
-}
-
-fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> std::result::Result<(), (Val, Val)> {
-  let ty1_fmt = format!("{ty1}");
-  let ty2_fmt = format!("{ty2}");
-  trace!("eq", "test for type equality of `{}` and `{}`", ty1_fmt, ty2_fmt,);
-  match (ty1, ty2) {
-    (Val::Set(Set { level: level1, .. }), Val::Set(Set { level: level2, .. })) if level1 == level2 => Ok(()),
-    (
-      Val::Abs(ValAbs {
-        ty: ty1,
-        body: body1,
-        env: mut env1,
-        ..
-      }),
-      Val::Abs(ValAbs {
-        ty: ty2,
-        body: body2,
-        env: mut env2,
-        ..
-      }),
-    ) => {
-      eq(*ty1, *ty2, lvl)?;
-      eq(eval(body1, &env1.ext_lvl(lvl)), eval(body2, &env2.ext_lvl(lvl)), lvl + 1)
-    }
-    (
-      Val::All(ValAll {
-        dom: dom1,
-        codom: codom1,
-        env: mut env1,
-        ..
-      }),
-      Val::All(ValAll {
-        dom: dom2,
-        codom: codom2,
-        env: mut env2,
-        ..
-      }),
-    ) => {
-      eq(*dom1, *dom2, lvl)?;
-      eq(eval(codom1, &env1.ext_lvl(lvl)), eval(codom2, &env2.ext_lvl(lvl)), lvl + 1)
-    }
-    (Val::Abs(ValAbs { mut env, body, .. }), val) => {
-      let var = Val::Var(ValVar::from(lvl));
-      let span = val.span();
-      eq(
-        eval(body, &env.ext_lvl(lvl)),
-        Val::App(ValApp {
-          left: Box::new(val),
-          right: Box::new(var),
-          span,
-        }),
-        lvl + 1,
-      )
-    }
-    (val, Val::Abs(ValAbs { mut env, body, .. })) => {
-      let var = Val::Var(ValVar::from(lvl));
-      let span = val.span();
-      eq(
-        Val::App(ValApp {
-          left: Box::new(val),
-          right: Box::new(var),
-          span,
-        }),
-        eval(body, &env.ext_lvl(lvl)),
-        lvl + 1,
-      )
-    }
-    (Val::Var(ValVar { lvl: lvl1, .. }), Val::Var(ValVar { lvl: lvl2, .. })) if lvl1 == lvl2 => Ok(()),
-    (Val::Data(ident1), Val::Data(ident2)) if ident1 == ident2 => Ok(()),
-    (Val::Cstr(ident1), Val::Cstr(ident2)) if ident1 == ident2 => Ok(()),
-    (Val::Func(ident1), Val::Func(ident2)) if ident1 == ident2 => Ok(()),
-    (Val::App(ValApp { left: left1, right: right1, .. }), Val::App(ValApp { left: left2, right: right2, .. })) => {
-      eq(*left1, *left2, lvl)?;
-      eq(*right1, *right2, lvl)
-    }
-    (ty1, ty2) => Err((ty1, ty2)),
-  }
-}
-
-pub fn expected_set(ty: &Val, max_lvl: Option<usize>) -> Result<()> {
-  if let Val::Set(Set { level, .. }) = ty {
-    if let Some(max_lvl) = max_lvl {
-      if *level > max_lvl {
-        return Err(Error::from(ElabErr::LevelTooHigh { tm: ty.clone(), max: max_lvl }));
-      }
-    }
-    return Ok(());
-  }
-  Err(Error::from(ElabErr::ExpectedSetCtx { got: ty.clone() }))
 }

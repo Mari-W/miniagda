@@ -61,8 +61,7 @@ pub struct Ctx {
 #[derive(Clone, Debug)]
 pub struct Cstr {
   pub ident: Ident,
-  pub args: Ctx,
-  pub params: Vec<Tm>,
+  pub ty: Tm,
   pub span: Span,
 }
 
@@ -231,14 +230,7 @@ impl Display for Func {
 
 impl Display for Cstr {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(
-      f,
-      "{} : {}{}{}",
-      self.ident,
-      self.args,
-      if self.args.binds.is_empty() { " " } else { " → " },
-      self.params.iter().map(|tm| format!("{tm}")).collect::<Vec<String>>().join(" ")
-    )
+    write!(f, "{} : {}", self.ident, self.ty)
   }
 }
 

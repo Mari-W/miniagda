@@ -85,6 +85,13 @@ pub struct Tel {
 // Functions
 
 #[derive(Clone, Debug)]
+pub struct PatVar {
+  pub name: String,
+  pub idx: Idx,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
 pub struct PatCst {
   pub cstr: Ident,
   pub pats: Vec<Pat>,
@@ -99,7 +106,7 @@ pub struct PatDot {
 
 #[derive(Clone, Debug)]
 pub enum Pat {
-  Var(Ident),
+  Var(PatVar),
   Cst(PatCst),
   Dot(PatDot),
 }
@@ -139,8 +146,7 @@ pub struct Func {
 #[derive(Clone, Debug)]
 pub struct Cstr {
   pub ident: Ident,
-  pub args: Tel,
-  pub params: Vec<Tm>,
+  pub ty: Tm,
   pub span: Span,
 }
 
@@ -166,8 +172,6 @@ pub enum Decl {
 #[derive(Clone, Debug)]
 pub struct Prog {
   pub decls: Vec<Decl>,
-  // pub tm: Tm,
-  // pub ty: Tm,
   pub span: Span,
 }
 
@@ -343,7 +347,7 @@ impl Display for Tel {
 impl Display for Pat {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Pat::Var(ident) => write!(f, "{ident}"),
+      Pat::Var(PatVar { name, .. }) => write!(f, "{name}"),
       Pat::Cst(PatCst { cstr, pats, .. }) => {
         if pats.is_empty() {
           write!(f, "({cstr})")
@@ -402,14 +406,7 @@ impl Display for Func {
 
 impl Display for Cstr {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(
-      f,
-      "{} : {}{}{}",
-      self.ident,
-      self.args,
-      if self.args.tms.is_empty() { "" } else { " → " },
-      self.params.iter().map(|tm| format!("{tm}")).collect::<Vec<String>>().join(" ")
-    )
+    write!(f, "{} : {}", self.ident, self.ty)
   }
 }
 

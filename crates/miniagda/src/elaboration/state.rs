@@ -10,23 +10,25 @@ use crate::{
   trace,
 };
 
+#[derive(Clone, Debug)]
+pub struct DataInfo {
+  pub params: usize,
+  pub is_empty: bool,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct State {
   pub env: Env,
   pub types: Vec<Val>,
   pub global_types: HashMap<Ident, Val>,
+  pub data_infos: HashMap<Ident, DataInfo>,
   pub lvl: Lvl,
 }
 
 impl State {
   pub fn resolve_global(&self, var: &Ident) -> Val {
-    let ty = self
-      .global_types
-      .get(var)
-      .unwrap_or_else(|| panic!("could not resolve type of global {var}"))
-      .clone();
+    let ty = self.global_types.get(var).unwrap_or_else(|| panic!("could not resolve type of global {var}")).clone();
     trace!(
-      "resolve_global",
       "resolved global `{}` to be of type `{}` in `{{{}}}",
       var,
       ty,
@@ -42,7 +44,6 @@ impl State {
       .unwrap_or_else(|| panic!("could not resolve type of variable {}", var.name))
       .clone();
     trace!(
-      "resolve",
       "resolved `{}` to be of type `{}` in [`{}`]",
       var,
       ty,
@@ -63,9 +64,16 @@ impl State {
   }
 
   pub fn bind_global(&mut self, glo: Ident, ty: Val) {
-    debug!("add_global", "add global `{}` with type `{}`", glo, ty);
-    assert!(!self.global_types.contains_key(&glo));
-    self.global_types.insert(glo, ty);
+    debug!("add global `{}` with type `{}`", glo, ty);
+    assert!(self.global_types.insert(glo, ty).is_none(), "ice: bound a global twice");
+  }
+
+  pub fn add_type_info(&mut self, data: Ident, info: DataInfo) {
+    assert!(self.data_infos.insert(data, info).is_none(), "ice: added data info twice");
+  }
+
+  pub fn get_type_info(&self, data: &Ident) -> DataInfo {
+    self.data_infos.get(data).expect("ice: forgot to insert data info for data declaration").clone()
   }
 
   pub fn bind(&mut self, name: String, ty: Val) {
@@ -80,13 +88,9 @@ impl State {
   }
 
   pub fn define(&mut self, val: Val, ty: Val) {
-    trace!("define", "defined `{}` with type `{}`", val, ty);
+    trace!("defined `{}` with type `{}`", val, ty);
     self.env.0.insert(0, val);
     self.types.insert(0, ty);
     self.lvl += 1;
-  }
-
-  pub fn no_locals(&self) -> bool {
-    self.env.0.is_empty() && self.types.is_empty()
   }
 }

@@ -69,6 +69,7 @@ impl_spanned_struct!(core::Set);
 impl_spanned_enum!(core::Tm; Var, Data, Cstr, Func, App, Abs, All, Set);
 impl_spanned_struct!(core::Ctx);
 impl_spanned_struct!(core::Tel);
+impl_spanned_struct!(core::PatVar);
 impl_spanned_struct!(core::PatCst);
 impl_spanned_struct!(core::PatDot);
 impl_spanned_enum!(core::Pat; Var, Cst, Dot);
