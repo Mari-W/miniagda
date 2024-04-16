@@ -347,7 +347,7 @@ impl Display for Tel {
 impl Display for Pat {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Pat::Var(PatVar { name, .. }) => write!(f, "{name}"),
+      Pat::Var(PatVar { name, ..}) => write!(f, "{name}"),
       Pat::Cst(PatCst { cstr, pats, .. }) => {
         if pats.is_empty() {
           write!(f, "({cstr})")
