@@ -44,7 +44,7 @@ fn elab_cls(cls: Cls, tel: &Tel, state: &State) -> Result<()> {
   let cls_cpy = cls.clone();
   trace!("inferring tel for clause {cls} in tel {tel}");
   match cls {
-    Cls::Cls(ClsClause { func, pats, rhs, span }) => {
+    Cls::Cls(ClsClause { pats, span, .. }) => {
       let (tel_binds, tel_tms, tms) = infer_pats(pats, &tel, state)?;
       let tel = Tel {
         binds: tel_binds,
@@ -53,7 +53,7 @@ fn elab_cls(cls: Cls, tel: &Tel, state: &State) -> Result<()> {
       };
       trace!("inferred tel {tel} for clause {cls_cpy} and terms {tms:?}")
     }
-    Cls::Abs(ClsAbsurd { func, pats, span }) => {}
+    Cls::Abs(ClsAbsurd { .. }) => {}
   }
 
   Ok(())
