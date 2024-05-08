@@ -4,4 +4,5 @@
 
 # important: run from root of repository
 
-rustfmt crates/**/**/*.rs --edition 2021
+rustfmt binaries/**/**/*.rs --edition 2021
+rustfmt miniagda/**/*.rs --edition 2021

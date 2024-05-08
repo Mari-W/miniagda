@@ -7,8 +7,8 @@
 #   - cargo-watch 
 #
 # example usage:
-#   ./scipts/dev path/to/file.agda
+#   ./scipts/watch path/to/file.agda
 #
 # important: run from root of repository
 
-cargo watch -x "run --bin miniagda -- $1" -w crates
+cargo watch -x "run --bin miniagda-watch -- $1" -w miniagda -w binaries

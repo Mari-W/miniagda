@@ -9,4 +9,4 @@
 # example usage:
 #  curl -s -L https://raw.githubusercontent.com/Mari-W/miniagda/master/scripts/install | bash
 
-cargo install --bin miniagda --git https://github.com/Mari-W/miniagda
+cargo install --bin miniagda-watch --git https://github.com/Mari-W/miniagda

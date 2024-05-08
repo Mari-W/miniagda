@@ -8,7 +8,7 @@ use crate::elaboration::state::DataInfo;
 use crate::elaboration::{ctx_to_fn, elab_tm_chk, fn_to_tel, tel_to_fn, unroll_app};
 use crate::syntax::core::{Env, Tm};
 use crate::syntax::{
-  core::{Cstr, Data, Set, TmApp, TmVar, Val},
+  core::{Cstr, Data, Set, TmVar, Val},
   Ident,
 };
 use crate::{debug, trace};

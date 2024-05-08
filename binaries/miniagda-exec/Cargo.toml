@@ -1,12 +1,16 @@
 [package]
-name = "miniagda-bin"
+name = "miniagda-exec"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-miniagda = { path = "../miniagda" }
+miniagda = { path = "../../miniagda" }
 env_logger = "*"
 log = "*"
 clap = { version = "*", features = ["derive"] }
+
+[[bin]]
+name = "miniagda-exec"
+path = "src/main.rs"
