@@ -4,8 +4,6 @@ use clap::Parser;
 use futures::StreamExt;
 use inotify::{Inotify, WatchMask};
 use miniagda::diagnostics::error::Error;
-use miniagda::diagnostics::Result;
-use miniagda::{elaboration::elab, parsing::parse, syntax::surface_to_core};
 use std::io::Write;
 use std::path::Path;
 use std::{io, panic};
@@ -18,22 +16,16 @@ struct Args {
   path: std::path::PathBuf,
 }
 
-fn run<P: AsRef<Path>>(path: P) -> Result<()> {
-  let prog = parse(path)?;
-  let prog = surface_to_core(prog)?;
-  elab(prog)
-}
-
 fn check<P: AsRef<Path> + panic::UnwindSafe>(path: P) {
   print!("{}{}", clear::All, cursor::Goto(2, 1));
-  match panic::catch_unwind(|| run(path)) {
-    Ok(Ok(())) => print!("{}✓{} All Done", color::Fg(color::Green), color::Fg(color::Reset)),
+  match panic::catch_unwind(|| miniagda::elaborate(path)) {
+    Ok(Ok(())) => print!("{}✓{} all done", color::Fg(color::Green), color::Fg(color::Reset)),
     Ok(Err(e)) => {
       let e = match e {
-        Error::SurfaceToCore(e) => format!("{e}"),
-        Error::Parse(e) => format!("{e}"),
-        Error::Lex(e) => format!("{e}"),
-        Error::Elab(e) => format!("{e}"),
+        Error::Translation(e) => format!("{e}"),
+        Error::Parsing(e) => format!("{e}"),
+        Error::Lexing(e) => format!("{e}"),
+        Error::Elaboration(e) => format!("{e}"),
       };
       print!("{}⨯{} {}", color::Fg(color::Red), color::Fg(color::Reset), e);
     }
@@ -49,7 +41,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
       "{}⨯{} miniagda crashed: {}",
       color::Fg(color::Red),
       color::Fg(color::Reset),
-      info.message().map(|a| a.as_str().unwrap_or("no reason")).unwrap_or("unexpected panic")
+      info.to_string()
     );
   }));
   let args = Args::parse();

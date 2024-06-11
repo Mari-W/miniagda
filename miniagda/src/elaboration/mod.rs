@@ -173,7 +173,7 @@ fn fn_to_tms(ty: Tm) -> (Vec<Ident>, Vec<Tm>, Tm) {
 // -----------------------------------------------------------------------------------------------------------------------------------
 // Programs
 
-pub fn elab(prog: Prog) -> Result<()> {
+pub fn elaborate(prog: Prog) -> Result<()> {
   let mut state = State::default();
   elab_prog(prog, &mut state)
 }

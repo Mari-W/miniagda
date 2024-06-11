@@ -1,24 +1,21 @@
-pub mod lex;
-pub mod parse;
+mod lex;
+mod parse;
 
 use crate::{
   diagnostics::error::{Error, ParseErr},
   diagnostics::Result,
-  parsing::lex::Token,
-  syntax::surface::Prog,
+  syntax::surf::Prog,
 };
-use std::{fs::read_to_string, path::Path};
+use std::{fs, path::Path};
 
-pub fn parse<P: AsRef<Path>>(path: P) -> Result<Prog> {
-  let file_path = path.as_ref().to_string_lossy().to_string();
-  let src = read_to_string(path).map_err(|_| Error::from(ParseErr::FileNotFound { path: file_path.clone() }))?;
-  let toks = lex::lex(src.as_str()).map_err(Error::from)?;
-  let indented = lex::process_indent(toks, |t| *t == Token::Where || *t == Token::Equals, |t| *t == Token::NewLine);
-  // println!("{:?}", indented);
-  let parsed = parse::parser::prog(&indented, &file_path).map_err(|e| ParseErr::UnexpectedToken {
-    pos: e.location,
-    expected: e.expected.to_string(),
-  })?;
-  // println!("{parsed}");
-  Ok(parsed)
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Public API
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+pub fn parse(path: impl AsRef<Path>) -> Result<Prog> {
+  let path_as_string = path.as_ref().to_string_lossy().to_string();
+  let file_content = fs::read_to_string(path).map_err(|_| Error::from(ParseErr::FileNotFound { path: path_as_string.clone() }))?;
+  let tokens = lex::lex(file_content.as_str()).map_err(Error::from)?;
+  let ast = parse::parse(&tokens, &path_as_string).map_err(Error::from)?;
+  Ok(ast)
 }

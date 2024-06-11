@@ -5,57 +5,23 @@ use crate::diagnostics::span::Span;
 use super::Ident;
 
 // -----------------------------------------------------------------------------------------------------------------------------------
-// Terms
-
-#[derive(Clone, Debug)]
-pub struct TmApp {
-  pub left: Box<Tm>,
-  pub right: Box<Tm>,
-  pub span: Span,
-}
-
-#[derive(Clone, Debug)]
-pub struct TmAbs {
-  pub ident: Ident,
-  pub ty: Box<Tm>,
-  pub body: Box<Tm>,
-  pub span: Span,
-}
-
-#[derive(Clone, Debug)]
-pub struct TmAll {
-  pub ident: Ident,
-  pub dom: Box<Tm>,
-  pub codom: Box<Tm>,
-  pub span: Span,
-}
-
-#[derive(Clone, Debug)]
-pub struct TmSet {
-  pub level: usize,
-  pub span: Span,
-}
-
-#[derive(Clone, Debug)]
-pub enum Tm {
-  Var(Ident),
-  App(TmApp),
-  Abs(TmAbs),
-  All(TmAll),
-  Set(TmSet),
-  Brc(Box<Tm>),
-}
-
+// Public API
 // -----------------------------------------------------------------------------------------------------------------------------------
-// Contexts
+
+// Programs
 
 #[derive(Clone, Debug)]
-pub struct Ctx {
-  pub binds: Vec<(Ident, Tm)>,
+pub enum Decl {
+  Data(Data),
+  Func(Func),
+}
+
+#[derive(Clone, Debug)]
+pub struct Prog {
+  pub decls: Vec<Decl>,
   pub span: Span,
 }
 
-// -----------------------------------------------------------------------------------------------------------------------------------
 // Data Types
 
 #[derive(Clone, Debug)]
@@ -75,7 +41,6 @@ pub struct Data {
   pub span: Span,
 }
 
-// -----------------------------------------------------------------------------------------------------------------------------------
 // Functions
 
 #[derive(Clone, Debug)]
@@ -126,23 +91,58 @@ pub struct Func {
   pub span: Span,
 }
 
-// -----------------------------------------------------------------------------------------------------------------------------------
-// Programs
+// Terms
 
 #[derive(Clone, Debug)]
-pub enum Decl {
-  Data(Data),
-  Func(Func),
+pub struct TmApp {
+  pub left: Box<Tm>,
+  pub right: Box<Tm>,
+  pub span: Span,
 }
 
 #[derive(Clone, Debug)]
-pub struct Prog {
-  pub decls: Vec<Decl>,
+pub struct TmAbs {
+  pub ident: Ident,
+  pub ty: Box<Tm>,
+  pub body: Box<Tm>,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub struct TmAll {
+  pub ident: Ident,
+  pub dom: Box<Tm>,
+  pub codom: Box<Tm>,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub struct TmSet {
+  pub level: usize,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub enum Tm {
+  Var(Ident),
+  App(TmApp),
+  Abs(TmAbs),
+  All(TmAll),
+  Set(TmSet),
+  Brc(Box<Tm>),
+}
+
+// Contexts
+
+#[derive(Clone, Debug)]
+pub struct Ctx {
+  pub binds: Vec<(Ident, Tm)>,
   pub span: Span,
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 // Trait Impls
+// -----------------------------------------------------------------------------------------------------------------------------------
 
 impl Display for Tm {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

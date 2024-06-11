@@ -1,10 +1,26 @@
 use super::lex::{Braced, SpannedToks, Token};
+use crate::diagnostics::error::ParseErr;
 use crate::diagnostics::span::{Span, Spanned};
-use crate::syntax::surface::{self, Cls, ClsAbsurd, ClsClause, Cstr, Ctx, Decl, Func, Pat, PatDot, PatId, Prog, Tm, TmAbs, TmAll, TmApp, TmSet};
+use crate::syntax::surf::{self, Cls, ClsAbsurd, ClsClause, Cstr, Ctx, Decl, Func, Pat, PatDot, PatId, Prog, Tm, TmAbs, TmAll, TmApp, TmSet};
 use crate::syntax::Ident;
 
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Public API
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+pub fn parse<'input>(tokens: &SpannedToks<'input, Braced<Token<'input>>>, file_path: &'input str) -> Result<Prog, ParseErr> {
+  grammar::prog(tokens, file_path).map_err(|e| ParseErr::UnexpectedToken {
+    pos: e.location,
+    expected: e.expected.to_string(),
+  })
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Parser
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 peg::parser! {
-  pub grammar parser<'a>(file: &str) for SpannedToks<'a, Braced<Token<'a>>> {
+  grammar grammar<'a>(file: &str) for SpannedToks<'a, Braced<Token<'a>>> {
     use Token::{Arrow, BraceL, BraceR, Colon, Data, Equals, Id, Lambda, ParenL, ParenR, Where, Dot, All};
     use Braced::{Begin, End, Item};
     use Braced::Token as Tok;
@@ -82,7 +98,6 @@ peg::parser! {
       / start:position!() [Tok(Dot)] [Tok(ParenL)] tm:tm() [Tok(ParenR)] end:position!() {
         Pat::Dot(PatDot { tm, span: Span { file: file.to_string(), start, end } })
       }
-      // ident:id() { Pat::Var(ident) } // might be Pat::Cst -- check in surface_to_core
 
     rule cls() -> Cls
       = [Item] start:position!() ident:id() pats:pat()* [Tok(Equals)] [Begin] [Item] tm:tm() [End] end:position!() {
@@ -122,10 +137,10 @@ peg::parser! {
         (Ctx { binds: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, tm)
       }
 
-    rule data() -> surface::Data
+    rule data() -> surf::Data
       = [Item]  start:position!() [Tok(Data)] ident:id() params:ctx() [Tok(Colon)] ial:indices_and_level() [Tok(Where)]
         [Begin] cstrs:cstr(&ident)* [Item]? [End] end:position!() {
-          surface::Data { ident, params, indices: ial.0, set: ial.1, cstrs, span: Span { file: file.to_string(), start, end } }
+          surf::Data { ident, params, indices: ial.0, set: ial.1, cstrs, span: Span { file: file.to_string(), start, end } }
       }
 
 

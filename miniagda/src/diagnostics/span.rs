@@ -1,4 +1,8 @@
-use crate::syntax::{core, surface, Ident};
+use crate::syntax::{core, surf, Ident};
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Public API
+// -----------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct Span {
@@ -10,6 +14,10 @@ pub struct Span {
 pub trait Spanned {
   fn span(&self) -> Span;
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Trait Impls
+// -----------------------------------------------------------------------------------------------------------------------------------
 
 impl Spanned for Span {
   fn span(&self) -> Span {
@@ -43,23 +51,23 @@ macro_rules! impl_spanned_enum {
 
 impl_spanned_struct!(Ident);
 
-impl_spanned_struct!(surface::TmApp);
-impl_spanned_struct!(surface::TmAbs);
-impl_spanned_struct!(surface::TmAll);
-impl_spanned_struct!(surface::TmSet);
-impl_spanned_enum!(surface::Tm; Var, App, Abs, All, Set, Brc);
-impl_spanned_struct!(surface::Ctx);
-impl_spanned_struct!(surface::PatId);
-impl_spanned_struct!(surface::PatDot);
-impl_spanned_enum!(surface::Pat; Id, Dot);
-impl_spanned_struct!(surface::ClsClause);
-impl_spanned_struct!(surface::ClsAbsurd);
-impl_spanned_enum!(surface::Cls; Cls, Abs);
-impl_spanned_struct!(surface::Func);
-impl_spanned_struct!(surface::Cstr);
-impl_spanned_struct!(surface::Data);
-impl_spanned_enum!(surface::Decl; Data, Func);
-impl_spanned_struct!(surface::Prog);
+impl_spanned_struct!(surf::TmApp);
+impl_spanned_struct!(surf::TmAbs);
+impl_spanned_struct!(surf::TmAll);
+impl_spanned_struct!(surf::TmSet);
+impl_spanned_enum!(surf::Tm; Var, App, Abs, All, Set, Brc);
+impl_spanned_struct!(surf::Ctx);
+impl_spanned_struct!(surf::PatId);
+impl_spanned_struct!(surf::PatDot);
+impl_spanned_enum!(surf::Pat; Id, Dot);
+impl_spanned_struct!(surf::ClsClause);
+impl_spanned_struct!(surf::ClsAbsurd);
+impl_spanned_enum!(surf::Cls; Cls, Abs);
+impl_spanned_struct!(surf::Func);
+impl_spanned_struct!(surf::Cstr);
+impl_spanned_struct!(surf::Data);
+impl_spanned_enum!(surf::Decl; Data, Func);
+impl_spanned_struct!(surf::Prog);
 
 impl_spanned_struct!(core::TmVar);
 impl_spanned_struct!(core::TmApp);
