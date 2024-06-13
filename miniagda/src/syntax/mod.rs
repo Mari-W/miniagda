@@ -8,8 +8,6 @@ use crate::{
 };
 use std::{fmt::Display, hash::Hash};
 
-use self::core::{ClsAbsurd, ClsClause};
-
 // -----------------------------------------------------------------------------------------------------------------------------------
 // Public API
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -34,78 +32,6 @@ pub struct Ident {
 // -----------------------------------------------------------------------------------------------------------------------------------
 // Translation
 // -----------------------------------------------------------------------------------------------------------------------------------
-
-// Env
-
-#[derive(Clone, Debug)]
-enum Glo {
-  Cstr,
-  Data,
-  Func,
-}
-
-#[derive(Clone, Debug, Default)]
-struct Env {
-  var: Vec<Ident>,
-  glo: Vec<(Ident, Glo)>,
-}
-
-impl Env {
-  fn resolve_pat(&self, ident: &Ident) -> core::Idx {
-    core::Idx(
-      self
-        .var
-        .iter()
-        .position(|n| n.name == ident.name)
-        .expect("ice: did not correctly brought all pattern variables to scope"),
-    )
-  }
-
-  fn resolve(&self, ident: Ident) -> Result<core::Tm> {
-    assert!(ident.name != "_", "ice: term inference not yet implemented");
-    match self.var.iter().position(|n| n.name == ident.name) {
-      Some(idx) => Ok(core::Tm::Var(core::TmVar {
-        name: ident.name,
-        idx: core::Idx(idx),
-        span: ident.span,
-      })),
-      None => {
-        if let Some((_, glo)) = self.glo.iter().find(|(x, _)| x == &ident) {
-          Ok(match glo {
-            Glo::Cstr => core::Tm::Cstr(ident),
-            Glo::Data => core::Tm::Data(ident),
-            Glo::Func => core::Tm::Func(ident),
-          })
-        } else {
-          Err(Error::from(TransErr::UnboundVariable { ident }))
-        }
-      }
-    }
-  }
-
-  fn has_cstr(&self, var: &Ident) -> bool {
-    matches!(self.glo.iter().find(|(x, _)| x == var), Some((_, Glo::Cstr)))
-  }
-
-  pub fn add_glo(&mut self, x: Ident, glo: Glo) -> Result<()> {
-    if self.glo.iter().any(|(var, _)| &x == var) {
-      return Err(Error::from(TransErr::DuplicatedGlobal { ident: x }));
-    }
-    self.glo.push((x, glo));
-    Ok(())
-  }
-
-  pub fn add_var(&mut self, x: Ident) {
-    self.var.insert(0, x);
-  }
-
-  pub fn forget<T>(&mut self, f: impl FnOnce(&mut Env) -> T) -> T {
-    let len = self.var.len();
-    let res = f(self);
-    self.var.drain(0..(self.var.len() - len));
-    res
-  }
-}
 
 // Programs
 
@@ -186,14 +112,15 @@ fn surface_to_core_cls(ident: &Ident, cls: surf::Cls, env: &mut Env) -> Result<c
   }
 
   let pats = translate_pats(pats, env)?;
+
   match rhs {
-    Some(rhs) => Ok(core::Cls::Cls(ClsClause {
+    Some(rhs) => Ok(core::Cls::Cls(core::ClsClause {
       func,
       pats,
       rhs: translate_tm(rhs, env)?,
       span,
     })),
-    None => Ok(core::Cls::Abs(ClsAbsurd { func, pats, span })),
+    None => Ok(core::Cls::Abs(core::ClsAbsurd { func, pats, span })),
   }
 }
 
@@ -309,6 +236,78 @@ fn translate_binds(binds: Vec<(Ident, surf::Tm)>, env: &mut Env) -> Result<(Vec<
       .into_iter()
       .unzip(),
   )
+}
+
+// Translation Environment
+
+#[derive(Clone, Debug)]
+enum Glo {
+  Cstr,
+  Data,
+  Func,
+}
+
+#[derive(Clone, Debug, Default)]
+struct Env {
+  var: Vec<Ident>,
+  glo: Vec<(Ident, Glo)>,
+}
+
+impl Env {
+  fn resolve_pat(&self, ident: &Ident) -> core::Idx {
+    core::Idx(
+      self
+        .var
+        .iter()
+        .position(|n| n.name == ident.name)
+        .expect("ice: did not correctly brought all pattern variables to scope"),
+    )
+  }
+
+  fn resolve(&self, ident: Ident) -> Result<core::Tm> {
+    assert!(ident.name != "_", "ice: term inference not yet implemented");
+    match self.var.iter().position(|n| n.name == ident.name) {
+      Some(idx) => Ok(core::Tm::Var(core::TmVar {
+        name: ident.name,
+        idx: core::Idx(idx),
+        span: ident.span,
+      })),
+      None => {
+        if let Some((_, glo)) = self.glo.iter().find(|(x, _)| x == &ident) {
+          Ok(match glo {
+            Glo::Cstr => core::Tm::Cstr(ident),
+            Glo::Data => core::Tm::Data(ident),
+            Glo::Func => core::Tm::Func(ident),
+          })
+        } else {
+          Err(Error::from(TransErr::UnboundVariable { ident }))
+        }
+      }
+    }
+  }
+
+  fn has_cstr(&self, var: &Ident) -> bool {
+    matches!(self.glo.iter().find(|(x, _)| x == var), Some((_, Glo::Cstr)))
+  }
+
+  pub fn add_glo(&mut self, x: Ident, glo: Glo) -> Result<()> {
+    if self.glo.iter().any(|(var, _)| &x == var) {
+      return Err(Error::from(TransErr::DuplicatedGlobal { ident: x }));
+    }
+    self.glo.push((x, glo));
+    Ok(())
+  }
+
+  pub fn add_var(&mut self, x: Ident) {
+    self.var.insert(0, x);
+  }
+
+  pub fn forget<T>(&mut self, f: impl FnOnce(&mut Env) -> T) -> T {
+    let len = self.var.len();
+    let res = f(self);
+    self.var.drain(0..(self.var.len() - len));
+    res
+  }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

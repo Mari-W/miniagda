@@ -2,33 +2,11 @@ use crate::diagnostics::span::Spanned;
 use crate::syntax::core::{Env, Idx, Lvl, Set, Tm, TmAbs, TmAll, TmApp, TmVar, Val, ValAbs, ValAll, ValApp, ValVar};
 use crate::trace;
 
-impl Env {
-  pub fn ext_lvl(&mut self, lvl: Lvl) -> Self {
-    self.ext(Val::Var(ValVar::from(lvl)))
-  }
-  pub fn ext(&mut self, val: Val) -> Self {
-    let mut env = self.to_owned();
-    env.0.insert(0, val);
-    env
-  }
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Public API
+// -----------------------------------------------------------------------------------------------------------------------------------
 
-  fn resolve(&self, x: TmVar) -> Val {
-    trace!(
-      "resolving `{}` from env `[{}]`",
-      x,
-      self.0.iter().map(|v| format!("{v}")).collect::<Vec<String>>().join(", ")
-    );
-    match &self.0[x.idx.0] {
-      // copy name and span from actual var
-      Val::Var(ValVar { lvl, .. }) => Val::Var(ValVar {
-        name: x.name,
-        lvl: *lvl,
-        span: x.span,
-      }),
-      v => v.clone(),
-    }
-  }
-}
+// Evaluation
 
 pub fn eval(tm: Tm, env: &Env) -> Val {
   let tm_str = format!("{tm}");
@@ -67,6 +45,8 @@ pub fn eval(tm: Tm, env: &Env) -> Val {
   trace!("evaluated `{}` to `{}`", tm_str, val);
   val
 }
+
+// Quoting
 
 pub fn quote(lvl: Lvl, val: Val) -> Tm {
   match val {
@@ -114,9 +94,13 @@ pub fn quote(lvl: Lvl, val: Val) -> Tm {
   }
 }
 
+// Normal Form
+
 pub fn nf(tm: Tm, env: &Env) -> Tm {
   quote(Lvl(env.0.len()), eval(tm, env))
 }
+
+// Equality
 
 pub fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> std::result::Result<(), (Val, Val)> {
   let ty1_fmt = format!("{ty1}");
@@ -193,5 +177,35 @@ pub fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> std::result::Result<(), (Val, Val)> {
       eq(*right1, *right2, lvl)
     }
     (ty1, ty2) => Err((ty1, ty2)),
+  }
+}
+
+// Eval Environment
+
+impl Env {
+  pub fn ext_lvl(&mut self, lvl: Lvl) -> Self {
+    self.ext(Val::Var(ValVar::from(lvl)))
+  }
+
+  pub fn ext(&mut self, val: Val) -> Self {
+    let mut env = self.to_owned();
+    env.0.insert(0, val);
+    env
+  }
+
+  fn resolve(&self, x: TmVar) -> Val {
+    trace!(
+      "resolving `{}` from env `[{}]`",
+      x,
+      self.0.iter().map(|v| format!("{v}")).collect::<Vec<String>>().join(", ")
+    );
+    match &self.0[x.idx.0] {
+      Val::Var(ValVar { lvl, .. }) => Val::Var(ValVar {
+        name: x.name,
+        lvl: *lvl,
+        span: x.span,
+      }),
+      v => v.clone(),
+    }
   }
 }

@@ -1,14 +1,12 @@
-// -----------------------------------------------------------------------------------------------------------------------------------
-// Functions
-
 use std::iter::once;
 
 use crate::{
+  debug,
   diagnostics::{
     error::{ElabErr, Error},
     span::Spanned,
   },
-  elaboration::{eval::nf, fn_to_tel, roll_app, tms_to_fn},
+  elaboration::{eval::nf, fn_to_tel, fn_to_tel_cut, roll_app},
   syntax::{
     core::{Cls, ClsAbsurd, ClsClause, Env, Func, Lvl, Pat, PatCst, PatDot, PatVar, Tel, Tm, TmVar, Val},
     Ident,
@@ -19,8 +17,14 @@ use crate::{
 use super::{elab_tm_inf, eval::quote, state::State, unroll_app};
 use crate::diagnostics::Result;
 
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Public API
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 pub fn elab_func(func: Func, state: &mut State) -> Result<()> {
   assert!(state.env.0.is_empty(), "ice: did not expect variables in scope for type of function definition");
+
+  debug!("elaborating function {}", func.ident);
 
   let n_ty = nf(func.ty.clone(), &state.env);
   trace!("normalized {} to {}", func.ty, n_ty);
@@ -30,7 +34,30 @@ pub fn elab_func(func: Func, state: &mut State) -> Result<()> {
     got => return Err(Error::from(ElabErr::ExpectedSetFun { got })),
   }
 
-  let (tel, r_ty) = fn_to_tel(n_ty);
+  if func.cls.is_empty() {
+    return Err(Error::from(ElabErr::MissingFunctionBody { ident: func.ident.clone() }));
+  }
+
+  let pats = match &func.cls[0] {
+    Cls::Cls(ClsClause { pats, .. }) => pats.len(),
+    Cls::Abs(ClsAbsurd { pats, .. }) => pats.len(),
+  };
+  for cls in &func.cls[1..] {
+    let len = match cls {
+      Cls::Cls(ClsClause { pats, .. }) => pats.len(),
+      Cls::Abs(ClsAbsurd { pats, .. }) => pats.len(),
+    };
+    if len != pats {
+      return Err(Error::from(ElabErr::MismatchPatAmount {
+        expected: pats,
+        got: len,
+        ident: func.ident.clone(),
+        span: cls.span(),
+      }));
+    }
+  }
+
+  let (tel, r_ty) = fn_to_tel_cut(n_ty, pats);
   trace!("got arguments {} and return type {}", tel, r_ty);
 
   for cls in func.cls {
@@ -40,12 +67,18 @@ pub fn elab_func(func: Func, state: &mut State) -> Result<()> {
   todo!()
 }
 
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Elaboration
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+// Clauses
+
 fn elab_cls(cls: Cls, tel: &Tel, state: &State) -> Result<()> {
   let cls_cpy = cls.clone();
   trace!("inferring tel for clause {cls} in tel {tel}");
   match cls {
     Cls::Cls(ClsClause { pats, span, .. }) => {
-      let (tel_binds, tel_tms, tms) = infer_pats(pats, &tel, state)?;
+      let (tel_binds, tel_tms, tms) = infer_pats(pats, tel, state)?;
       let tel = Tel {
         binds: tel_binds,
         tms: tel_tms,
@@ -59,12 +92,14 @@ fn elab_cls(cls: Cls, tel: &Tel, state: &State) -> Result<()> {
   Ok(())
 }
 
+// Patterns
+
 fn infer_pats(pats: Vec<Pat>, tel: &Tel, state: &State) -> Result<(Vec<Ident>, Vec<Tm>, Vec<Tm>)> {
   if pats.len() > tel.binds.len() {
     return Err(Error::from(ElabErr::TooManyPatterns {
       expected: tel.binds.len(),
       got: pats.len(),
-      span: pats.last().expect("vec is not empty, checked implicitly before").span(),
+      span: pats.last().unwrap().span(),
     }));
   }
   Ok(
@@ -73,15 +108,7 @@ fn infer_pats(pats: Vec<Pat>, tel: &Tel, state: &State) -> Result<(Vec<Ident>, V
       .enumerate()
       .map(|(i, pat)| {
         trace!("infer tel and tm for pat {pat} in {tel}");
-        if i == pats.len() - 1 {
-          infer_pat(
-            pat,
-            &tms_to_fn(&tel.tms[i..tel.tms.len() - 1], &tel.binds[i..tel.tms.len() - 1], tel.tms[tel.tms.len() - 1].clone()),
-            state,
-          )
-        } else {
-          infer_pat(pat, &tel.tms[i], state)
-        }
+        infer_pat(pat, &tel.tms[i], state)
       })
       .collect::<Result<Vec<_>>>()?
       .into_iter()
@@ -115,11 +142,11 @@ fn infer_pat(pat: &Pat, ty: &Tm, state: &State) -> Result<(Vec<Ident>, Vec<Tm>, 
       let ty = unroll_app(ty.clone());
       let (ident, info) = match &ty[0] {
         Tm::Data(ident) => (ident, state.get_type_info(ident)),
-        tm => return Err(Error::from(ElabErr::ExpectedDataForPat { got: tm.clone() })),
+        tm => return Err(Error::from(ElabErr::ExpectedDataForCstrPat { got: tm.clone() })),
       };
 
       assert!(
-        ty[1..].len() >= info.params,
+        ty.len() - 1 >= info.params,
         "ice: a type was checked to have kind set even though it was not fully applied to its parameters"
       );
 
@@ -142,7 +169,7 @@ fn infer_pat(pat: &Pat, ty: &Tm, state: &State) -> Result<(Vec<Ident>, Vec<Tm>, 
 
       // check that there are as many patterns as types
       if pats.len() != tel.binds.len() {
-        return Err(Error::from(ElabErr::MisMatchPatAmount {
+        return Err(Error::from(ElabErr::MismatchPatAmount {
           expected: tel.binds.len(),
           got: pats.len(),
           ident: cstr.clone(),

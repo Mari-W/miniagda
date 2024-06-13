@@ -14,7 +14,8 @@ use crate::syntax::{
 use crate::{debug, trace};
 
 // -----------------------------------------------------------------------------------------------------------------------------------
-// Data Types
+// Public API
+// -----------------------------------------------------------------------------------------------------------------------------------
 
 pub fn elab_data(data: Data, state: &mut State) -> Result<()> {
   let data_clone = data.clone();
@@ -52,6 +53,12 @@ pub fn elab_data(data: Data, state: &mut State) -> Result<()> {
   debug!("elaborated data type `{}`", data.ident);
   Ok(())
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Elaboration
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+// Constructors
 
 fn elab_cstr(cstr: Cstr, data: &Data, level: usize, indices_types: &[Val], state: &mut State) -> Result<()> {
   let name = cstr.ident.clone();
@@ -125,6 +132,8 @@ fn elab_cstr(cstr: Cstr, data: &Data, level: usize, indices_types: &[Val], state
   Ok(())
 }
 
+// Parameters
+
 fn elab_params(binds: Vec<Ident>, tms: Vec<Tm>, max_lvl: Option<usize>, state: &mut State) -> Result<Vec<Val>> {
   pub fn expected_set(ty: &Val, max_lvl: Option<usize>) -> Result<()> {
     if let Val::Set(Set { level, .. }) = ty {
@@ -150,6 +159,8 @@ fn elab_params(binds: Vec<Ident>, tms: Vec<Tm>, max_lvl: Option<usize>, state: &
     })
     .collect::<Result<Vec<_>>>()
 }
+
+// Indices
 
 fn elab_indices(tms: &[Tm], tys: &[Val], binds: &[Ident], state: &State) -> Result<()> {
   assert!(

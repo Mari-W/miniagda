@@ -54,10 +54,12 @@ pub enum ElabErr {
   TypeMismatch { ty1: Val, ty2: Val, v1: Val, v2: Val },
   FunctionTypeExpected { tm: Tm, got: Val },
   AttemptAbsInfer { tm: Tm },
-  ExpectedDataForPat { got: Tm },
+  ExpectedDataForCstrPat { got: Tm },
   CstrNotPresent { data: Ident, got: Ident },
-  MisMatchPatAmount { expected: usize, got: usize, ident: Ident, span: Span },
+  MismatchPatAmount { expected: usize, got: usize, ident: Ident, span: Span },
   TooManyPatterns { expected: usize, got: usize, span: Span },
+  MissingFunctionBody { ident: Ident },
+  DifferingPatternAmount { expected: usize, got: usize, ident: Ident, span: Span },
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -138,10 +140,12 @@ impl Display for ElabErr {
       ElabErr::AttemptAbsInfer { tm } => write!(f, "cannot infer type for abstraction `{tm}`"),
       ElabErr::ExpectedSetData { got } => write!(f, "expected data type definition to end in Setℓ, but got `{got}`"),
       ElabErr::ExpectedSetFun { got } => write!(f, "expected function type to be of kind Setℓ for some ℓ, but got `{got}`"),
-      ElabErr::ExpectedDataForPat { got } => write!(f, "expected data type to match with constructor pattern on, but got `{got}`"),
+      ElabErr::ExpectedDataForCstrPat { got } => write!(f, "expected data type to match with constructor pattern on, but got `{got}`"),
       ElabErr::CstrNotPresent { data, got } => write!(f, "data type `{data}` does not have a constructor named `{got}`"),
-      ElabErr::MisMatchPatAmount { expected, got, ident, .. } => write!(f, "expected {expected} patterns to match constructor `{ident}`, but got {got}"),
+      ElabErr::MismatchPatAmount { expected, got, ident, .. } => write!(f, "expected {expected} patterns to match constructor `{ident}`, but got {got}"),
       ElabErr::TooManyPatterns { expected, got, .. } => write!(f, "expected at most {expected} patterns to match clause, but got {got}"),
+      ElabErr::MissingFunctionBody { ident } => write!(f, "function `{ident}` does not have a body"),
+      ElabErr::DifferingPatternAmount { expected, got, .. } => write!(f, "expected {expected} as the amount of patterns in the this clause, but got {got}"),
     }
   }
 }

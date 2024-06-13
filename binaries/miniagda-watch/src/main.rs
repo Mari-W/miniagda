@@ -41,7 +41,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
       "{}⨯{} miniagda crashed: {}",
       color::Fg(color::Red),
       color::Fg(color::Reset),
-      info.to_string()
+      info
     );
   }));
   let args = Args::parse();

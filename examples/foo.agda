@@ -17,10 +17,7 @@ data Leq : N → N → Set where
 data Vec (A : Set) : N → Set where
   nil  : Vec A zero
   cons : (n : N) → Vec A n → A → Vec A (suc n)
-
-foo : Vec T zero 
-foo = nil {A = T}
-
+  
 data Sum (A : Set) (B : Set) : Set where
   left  : A → Sum A B
   right : B → Sum A B 
@@ -28,8 +25,10 @@ data Sum (A : Set) (B : Set) : Set where
 data Pair (A : Set) (B : Set) : Set where
   pair : A → B → Pair A B
 
--- proj1 : (A : Set) → (B : Set) → Pair A B → Pair A
--- proj1 _ _ (pair a b) = a
+
+proj1 : (A : Set) → (B : Set) → Pair A B → A
+proj1 _ _ = {!   !}
+
 -- 
 -- proj2 : (A : Set) → (B : Set) → Pair A B → A
 -- proj2 _ _ (pair a b) = a

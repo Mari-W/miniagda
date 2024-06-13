@@ -16,15 +16,44 @@ use crate::syntax::core::{Set, Tm, TmAbs, TmAll, TmApp, Val, ValAll};
 use self::{data::elab_data, func::elab_func, state::State};
 use crate::diagnostics::Result;
 
-mod data;
 mod eval;
-mod func;
 mod state;
 
 // -----------------------------------------------------------------------------------------------------------------------------------
+// Public API
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+pub fn elaborate(prog: Prog) -> Result<()> {
+  let mut state = State::default();
+  elab_prog(prog, &mut state)
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Elaboration
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+// Programs
+fn elab_prog(prog: Prog, state: &mut State) -> Result<()> {
+  prog.decls.into_iter().map(|decl| elab_decl(decl, state)).collect::<Result<Vec<_>>>()?;
+  Ok(())
+}
+
+fn elab_decl(decl: Decl, state: &mut State) -> Result<()> {
+  state.forget(|state| match decl {
+    Decl::Data(data) => elab_data(data, state),
+    Decl::Func(func) => elab_func(func, state),
+  })
+}
+
+// Data Types
+mod data;
+
+// Functions
+mod func;
+
 // Terms
 
-pub fn elab_tm_chk(tm: Tm, ty: Val, state: &State) -> Result<()> {
+fn elab_tm_chk(tm: Tm, ty: Val, state: &State) -> Result<()> {
   trace!("check that term `{}` has type `{}` (up to β-η reduction)", tm, ty);
   let tm_fmt = format!("{tm}");
   let ty_fmt = format!("{ty}");
@@ -47,7 +76,7 @@ pub fn elab_tm_chk(tm: Tm, ty: Val, state: &State) -> Result<()> {
   Ok(())
 }
 
-pub fn elab_tm_inf(tm: Tm, state: &State) -> Result<Val> {
+fn elab_tm_inf(tm: Tm, state: &State) -> Result<Val> {
   let tm_fmt = format!("{tm}");
   let ty = match tm {
     Tm::Var(x) => state.resolve(&x),
@@ -115,11 +144,11 @@ fn roll_app(left: Tm, tms: &[Tm]) -> Tm {
 // ------------------------------------------------------------------------------------------------------------------------------------
 // Contexts
 
-pub fn ctx_to_fn(ctx: &Ctx, end: Tm) -> Tm {
+fn ctx_to_fn(ctx: &Ctx, end: Tm) -> Tm {
   tms_to_fn(&ctx.tms, &ctx.binds, end)
 }
 
-pub fn tel_to_fn(tel: &Tel, end: Tm) -> Tm {
+fn tel_to_fn(tel: &Tel, end: Tm) -> Tm {
   tms_to_fn(&tel.tms, &tel.binds, end)
 }
 
@@ -145,13 +174,20 @@ fn tms_to_fn(tms: &[Tm], binds: &[Ident], end: Tm) -> Tm {
   })
 }
 
-pub fn fn_to_ctx(ty: Tm) -> (Ctx, Tm) {
+fn fn_to_ctx(ty: Tm) -> (Ctx, Tm) {
   let span = ty.span();
   let (binds, tms, r_ty) = fn_to_tms(ty);
   (Ctx { binds, tms, span }, r_ty)
 }
 
-pub fn fn_to_tel(ty: Tm) -> (Tel, Tm) {
+
+fn fn_to_tel(ty: Tm) -> (Tel, Tm) {
+  let span = ty.span();
+  let (binds, tms, r_ty) = fn_to_tms(ty);
+  (Tel { binds, tms, span }, r_ty)
+}
+
+fn fn_to_tel_cut(ty: Tm, cut: usize) -> (Tel, Tm) {
   let span = ty.span();
   let (binds, tms, r_ty) = fn_to_tms(ty);
   (Tel { binds, tms, span }, r_ty)
@@ -159,7 +195,7 @@ pub fn fn_to_tel(ty: Tm) -> (Tel, Tm) {
 
 fn fn_to_tms(ty: Tm) -> (Vec<Ident>, Vec<Tm>, Tm) {
   match ty {
-    Tm::Abs(_) => unreachable!("ice: cannot have a abstraction in function type at this point"),
+    Tm::Abs(_) => unreachable!("ice: there should not be an abstraction in a function type at this point"),
     Tm::All(TmAll { ident, box dom, box codom, .. }) => {
       let (mut binds, mut tms, rty) = fn_to_tms(codom);
       binds.insert(0, ident);
@@ -168,24 +204,4 @@ fn fn_to_tms(ty: Tm) -> (Vec<Ident>, Vec<Tm>, Tm) {
     }
     tm => (vec![], vec![], tm),
   }
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-// Programs
-
-pub fn elaborate(prog: Prog) -> Result<()> {
-  let mut state = State::default();
-  elab_prog(prog, &mut state)
-}
-
-pub fn elab_prog(prog: Prog, state: &mut State) -> Result<()> {
-  prog.decls.into_iter().map(|decl| elab_decl(decl, state)).collect::<Result<Vec<_>>>()?;
-  Ok(())
-}
-
-pub fn elab_decl(decl: Decl, state: &mut State) -> Result<()> {
-  state.forget(|state| match decl {
-    Decl::Data(data) => elab_data(data, state),
-    Decl::Func(func) => elab_func(func, state),
-  })
 }

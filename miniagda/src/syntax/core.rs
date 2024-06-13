@@ -174,9 +174,6 @@ pub struct ValApp {
   pub span: Span,
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct Env(pub Vec<Val>);
-
 #[derive(Clone, Debug)]
 pub struct ValAbs {
   pub env: Env,
@@ -208,6 +205,9 @@ pub enum Val {
 }
 
 // Contexts
+
+#[derive(Clone, Debug, Default)]
+pub struct Env(pub Vec<Val>);
 
 #[derive(Clone, Debug)]
 pub struct Ctx {
